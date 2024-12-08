@@ -6,15 +6,6 @@ export async function sendEmail({ to, subject, react }) {
   const resend = new Resend(process.env.RESEND_API_KEY || "");
 
   try {
-    // Check if API key exists before attempting to send
-    if (!resendApiKey) {
-      console.error("Cannot send email: RESEND_API_KEY is not configured");
-      return {
-        success: false,
-        error: "Email service not configured",
-      };
-    }
-
     const data = await resend.emails.send({
       from: "Finance App <onboarding@resend.dev>",
       to,
