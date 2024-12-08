@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { getAccountWithTransactions } from "@/actions/account";
-import { bulkDeleteTransactions } from "@/actions/account";
 import { BarLoader } from "react-spinners";
 import { TransactionTable } from "../_components/transaction-table";
 import { notFound } from "next/navigation";
@@ -49,13 +48,7 @@ export default async function AccountPage({ params }) {
       <Suspense
         fallback={<BarLoader className="mt-4" width={"100%"} color="#9333ea" />}
       >
-        <TransactionTable
-          transactions={transactions}
-          onDelete={async (ids) => {
-            "use server";
-            await bulkDeleteTransactions(ids);
-          }}
-        />
+        <TransactionTable transactions={transactions} />
       </Suspense>
     </div>
   );

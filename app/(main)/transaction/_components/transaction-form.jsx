@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { CalendarIcon, Camera, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import useFetch from "@/hooks/use-fetch";
@@ -29,35 +28,12 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CreateAccountDrawer } from "@/components/create-account-drawer";
 import { cn } from "@/lib/utils";
-import { createTransaction, scanReceipt } from "@/actions/transaction";
-
-const transactionSchema = z
-  .object({
-    type: z.enum(["INCOME", "EXPENSE"]),
-    amount: z.string().min(1, "Amount is required"),
-    description: z.string().optional(),
-    date: z.date({ required_error: "Date is required" }),
-    accountId: z.string().min(1, "Account is required"),
-    category: z.string().min(1, "Category is required"),
-    isRecurring: z.boolean().default(false),
-    recurringInterval: z
-      .enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"])
-      .optional(),
-    notes: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.isRecurring && !data.recurringInterval) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Recurring interval is required for recurring transactions",
-        path: ["recurringInterval"],
-      });
-    }
-  });
+import { createTransaction } from "@/actions/transaction";
+import { ReceiptScanner } from "./recipt-scanner";
+import { transactionSchema } from "@/app/lib/schema";
 
 export function AddTransactionForm({ accounts, categories }) {
   const router = useRouter();
-  const fileInputRef = useRef(null);
 
   const {
     register,
@@ -65,12 +41,14 @@ export function AddTransactionForm({ accounts, categories }) {
     formState: { errors },
     watch,
     setValue,
+    getValues,
   } = useForm({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       type: "EXPENSE",
       amount: "",
       description: "",
+      accountId: accounts.find((ac) => ac.isDefault)?.id,
       date: new Date(),
       isRecurring: false,
       notes: "",
@@ -83,12 +61,6 @@ export function AddTransactionForm({ accounts, categories }) {
     data: newTransaction,
   } = useFetch(createTransaction);
 
-  const {
-    loading: scanReceiptLoading,
-    fn: scanReceiptFn,
-    data: scannedData,
-  } = useFetch(scanReceipt);
-
   const onSubmit = async (data) => {
     await createTransactionFn({
       ...data,
@@ -96,18 +68,12 @@ export function AddTransactionForm({ accounts, categories }) {
     });
   };
 
-  const handleReceiptScan = async (file) => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size should be less than 5MB");
-      return;
-    }
+  const type = watch("type");
+  const isRecurring = watch("isRecurring");
+  const date = watch("date");
 
-    await scanReceiptFn(file);
-  };
-
-  useEffect(() => {
-    if (scannedData && !scanReceiptLoading) {
-      // Auto-fill form with scanned data
+  const handleScanComplete = (scannedData) => {
+    if (scannedData) {
       setValue("amount", scannedData.amount.toString());
       setValue("date", new Date(scannedData.date));
       if (scannedData.description) {
@@ -116,13 +82,8 @@ export function AddTransactionForm({ accounts, categories }) {
       if (scannedData.category) {
         setValue("category", scannedData.category);
       }
-      toast.success("Receipt scanned successfully");
     }
-  }, [scanReceiptLoading, scannedData]);
-
-  const type = watch("type");
-  const isRecurring = watch("isRecurring");
-  const date = watch("date");
+  };
 
   useEffect(() => {
     if (newTransaction && newTransaction.success && !createTransactionLoading) {
@@ -138,38 +99,7 @@ export function AddTransactionForm({ accounts, categories }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Receipt Scanner */}
-      <div className="flex items-center gap-4">
-        <input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          accept="image/*"
-          capture="environment"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleReceiptScan(file);
-          }}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full h-10 bg-gradient-to-br from-orange-500 via-pink-500 to-purple-500 animate-gradient hover:opacity-90 transition-opacity text-white hover:text-white"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={scanReceiptLoading}
-        >
-          {scanReceiptLoading ? (
-            <>
-              <Loader2 className="mr-2  animate-spin" />
-              <span>Scanning Receipt...</span>
-            </>
-          ) : (
-            <>
-              <Camera className="mr-2 " />
-              <span>Scan Receipt with AI</span>
-            </>
-          )}
-        </Button>
-      </div>
+      <ReceiptScanner onScanComplete={handleScanComplete} />
 
       {/* Type */}
       <div className="space-y-2">
@@ -243,7 +173,7 @@ export function AddTransactionForm({ accounts, categories }) {
         <Select onValueChange={(value) => setValue("category", value)}>
           <SelectTrigger>
             <SelectValue
-              placeholder={scannedData?.category || "Select category"}
+              placeholder={getValues("category") || "Select category"}
             />
           </SelectTrigger>
           <SelectContent>

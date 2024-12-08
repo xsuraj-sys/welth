@@ -11,13 +11,15 @@ import {
 import Link from "next/link";
 
 export function AccountCard({ account }) {
-  const { name, type, balance, _count, id } = account;
+  const { name, type, balance, id } = account;
 
   return (
     <Link href={`/account/${id}`}>
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{name}</CardTitle>
+          <CardTitle className="text-sm font-medium capitalize">
+            {name}
+          </CardTitle>
           <CreditCard className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>

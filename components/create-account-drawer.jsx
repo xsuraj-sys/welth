@@ -27,13 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { createAccount } from "@/actions/dashboard";
-
-const accountSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  type: z.enum(["CURRENT", "SAVINGS"]),
-  balance: z.string().min(1, "Initial balance is required"),
-  isDefault: z.boolean().default(false),
-});
+import { accountSchema } from "@/app/lib/schema";
 
 export function CreateAccountDrawer({ children }) {
   const [open, setOpen] = useState(false);
