@@ -2,9 +2,9 @@
 
 import { Resend } from "resend";
 
-export const resend = new Resend(process.env.RESEND_API_KEY || "");
-
 export async function sendEmail({ to, subject, react }) {
+  const resend = new Resend(process.env.RESEND_API_KEY || "");
+
   try {
     // Check if API key exists before attempting to send
     if (!resendApiKey) {
