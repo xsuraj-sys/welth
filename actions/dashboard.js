@@ -64,8 +64,18 @@ export async function createAccount(data) {
       throw new Error("Invalid balance amount");
     }
 
-    // If this is set as default, unset other default accounts
-    if (data.isDefault) {
+    // Check if this is the user's first account
+    const existingAccounts = await db.account.findMany({
+      where: { userId: user.id },
+    });
+
+    // If it's the first account, make it default regardless of user input
+    // If not, use the user's preference
+    const shouldBeDefault =
+      existingAccounts.length === 0 ? true : data.isDefault;
+
+    // If this account should be default, unset other default accounts
+    if (shouldBeDefault) {
       await db.account.updateMany({
         where: { userId: user.id, isDefault: true },
         data: { isDefault: false },
@@ -78,6 +88,7 @@ export async function createAccount(data) {
         ...data,
         balance: balanceFloat,
         userId: user.id,
+        isDefault: shouldBeDefault, // Override the isDefault based on our logic
       },
     });
 

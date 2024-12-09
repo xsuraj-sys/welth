@@ -78,10 +78,8 @@ export function NoPaginationTransactionTable({ transactions }) {
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      result = result.filter(
-        (transaction) =>
-          transaction.description?.toLowerCase().includes(searchLower) ||
-          transaction.notes?.toLowerCase().includes(searchLower)
+      result = result.filter((transaction) =>
+        transaction.description?.toLowerCase().includes(searchLower)
       );
     }
 

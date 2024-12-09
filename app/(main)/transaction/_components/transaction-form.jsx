@@ -5,13 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import useFetch from "@/hooks/use-fetch";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -28,12 +27,19 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CreateAccountDrawer } from "@/components/create-account-drawer";
 import { cn } from "@/lib/utils";
-import { createTransaction } from "@/actions/transaction";
-import { ReceiptScanner } from "./recipt-scanner";
+import { createTransaction, updateTransaction } from "@/actions/transaction";
 import { transactionSchema } from "@/app/lib/schema";
+import { ReceiptScanner } from "./recipt-scanner";
 
-export function AddTransactionForm({ accounts, categories }) {
+export function AddTransactionForm({
+  accounts,
+  categories,
+  editMode = false,
+  initialData = null,
+}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
 
   const {
     register,
@@ -42,35 +48,53 @@ export function AddTransactionForm({ accounts, categories }) {
     watch,
     setValue,
     getValues,
+    reset,
   } = useForm({
     resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      type: "EXPENSE",
-      amount: "",
-      description: "",
-      accountId: accounts.find((ac) => ac.isDefault)?.id,
-      date: new Date(),
-      isRecurring: false,
-      notes: "",
-    },
+    defaultValues:
+      editMode && initialData
+        ? {
+            type: initialData.type,
+            amount: initialData.amount.toString(),
+            description: initialData.description,
+            accountId: initialData.accountId,
+            category: initialData.category,
+            date: new Date(initialData.date),
+            isRecurring: initialData.isRecurring,
+            ...(initialData.recurringInterval && {
+              recurringInterval: initialData.recurringInterval,
+            }),
+          }
+        : {
+            type: "EXPENSE",
+            amount: "",
+            description: "",
+            accountId: accounts.find((ac) => ac.isDefault)?.id,
+            date: new Date(),
+            isRecurring: false,
+          },
   });
 
   const {
-    loading: createTransactionLoading,
-    fn: createTransactionFn,
-    data: newTransaction,
-  } = useFetch(createTransaction);
+    loading: transactionLoading,
+    fn: transactionFn,
+    data: transactionResult,
+  } = useFetch(editMode ? updateTransaction : createTransaction);
 
-  const onSubmit = async (data) => {
-    await createTransactionFn({
+  console.log("Form values:", watch(), errors);
+
+  const onSubmit = (data) => {
+    const formData = {
       ...data,
       amount: parseFloat(data.amount),
-    });
-  };
+    };
 
-  const type = watch("type");
-  const isRecurring = watch("isRecurring");
-  const date = watch("date");
+    if (editMode) {
+      transactionFn(editId, formData);
+    } else {
+      transactionFn(formData);
+    }
+  };
 
   const handleScanComplete = (scannedData) => {
     if (scannedData) {
@@ -82,15 +106,25 @@ export function AddTransactionForm({ accounts, categories }) {
       if (scannedData.category) {
         setValue("category", scannedData.category);
       }
+      toast.success("Receipt scanned successfully");
     }
   };
 
   useEffect(() => {
-    if (newTransaction && newTransaction.success && !createTransactionLoading) {
-      toast.success("Transaction created successfully");
-      router.push(`/account/${newTransaction.data.accountId}`);
+    if (transactionResult?.success && !transactionLoading) {
+      toast.success(
+        editMode
+          ? "Transaction updated successfully"
+          : "Transaction created successfully"
+      );
+      reset();
+      router.push(`/account/${transactionResult.data.accountId}`);
     }
-  }, [newTransaction, createTransactionLoading]);
+  }, [transactionResult, transactionLoading, editMode]);
+
+  const type = watch("type");
+  const isRecurring = watch("isRecurring");
+  const date = watch("date");
 
   const filteredCategories = categories.filter(
     (category) => category.type === type
@@ -98,8 +132,8 @@ export function AddTransactionForm({ accounts, categories }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Receipt Scanner */}
-      <ReceiptScanner onScanComplete={handleScanComplete} />
+      {/* Receipt Scanner - Only show in create mode */}
+      {!editMode && <ReceiptScanner onScanComplete={handleScanComplete} />}
 
       {/* Type */}
       <div className="space-y-2">
@@ -140,7 +174,7 @@ export function AddTransactionForm({ accounts, categories }) {
           <label className="text-sm font-medium">Account</label>
           <Select
             onValueChange={(value) => setValue("accountId", value)}
-            defaultValue={accounts.find((ac) => ac.isDefault)?.id}
+            defaultValue={getValues("accountId")}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select account" />
@@ -170,11 +204,12 @@ export function AddTransactionForm({ accounts, categories }) {
       {/* Category */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Category</label>
-        <Select onValueChange={(value) => setValue("category", value)}>
+        <Select
+          onValueChange={(value) => setValue("category", value)}
+          defaultValue={getValues("category")}
+        >
           <SelectTrigger>
-            <SelectValue
-              placeholder={getValues("category") || "Select category"}
-            />
+            <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
             {filteredCategories.map((category) => (
@@ -251,6 +286,7 @@ export function AddTransactionForm({ accounts, categories }) {
           <label className="text-sm font-medium">Recurring Interval</label>
           <Select
             onValueChange={(value) => setValue("recurringInterval", value)}
+            defaultValue={getValues("recurringInterval")}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select interval" />
@@ -270,19 +306,6 @@ export function AddTransactionForm({ accounts, categories }) {
         </div>
       )}
 
-      {/* Notes */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Notes</label>
-        <Textarea
-          placeholder="Add any additional notes"
-          className="resize-none"
-          {...register("notes")}
-        />
-        {errors.notes && (
-          <p className="text-sm text-red-500">{errors.notes.message}</p>
-        )}
-      </div>
-
       {/* Actions */}
       <div className="flex gap-4">
         <Button
@@ -293,16 +316,14 @@ export function AddTransactionForm({ accounts, categories }) {
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={createTransactionLoading}
-        >
-          {createTransactionLoading ? (
+        <Button type="submit" className="w-full" disabled={transactionLoading}>
+          {transactionLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating...
+              {editMode ? "Updating..." : "Creating..."}
             </>
+          ) : editMode ? (
+            "Update Transaction"
           ) : (
             "Create Transaction"
           )}
