@@ -64,8 +64,6 @@ export async function getCurrentBudget(accountId) {
 }
 
 export async function updateBudget(amount) {
-  console.log(amount, "iii");
-
   try {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
@@ -75,19 +73,6 @@ export async function updateBudget(amount) {
     });
 
     if (!user) throw new Error("User not found");
-
-    console.log({
-      where: {
-        userId: user.id,
-      },
-      update: {
-        amount,
-      },
-      create: {
-        userId: user.id,
-        amount,
-      },
-    });
 
     // Update or create budget
     const budget = await db.budget.upsert({

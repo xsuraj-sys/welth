@@ -81,8 +81,6 @@ export function AddTransactionForm({
     data: transactionResult,
   } = useFetch(editMode ? updateTransaction : createTransaction);
 
-  console.log("Form values:", watch(), errors);
-
   const onSubmit = (data) => {
     const formData = {
       ...data,

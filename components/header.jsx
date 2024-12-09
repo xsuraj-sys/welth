@@ -4,6 +4,7 @@ import { PenBox, Wallet, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { checkUser } from "@/lib/checkUser";
+import Image from "next/image";
 
 const Header = async () => {
   await checkUser();
@@ -11,12 +12,15 @@ const Header = async () => {
   return (
     <header className="top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b">
       <nav className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Wallet className="h-6 w-6 text-blue-600" />
-          <Link href="/" className="text-xl font-bold">
-            FinanceFlow
-          </Link>
-        </div>
+        <Link href="/">
+          <Image
+            src={"/logo.png"}
+            alt="Welth Logo"
+            width={200}
+            height={60}
+            className="h-12 w-auto object-contain"
+          />
+        </Link>
 
         {/* Navigation Links - Different for signed in/out users */}
         <div className="hidden md:flex items-center space-x-8">
